@@ -27,6 +27,9 @@ class OrderControllerTests {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private OrderRepository orderRepository;
+
     @Test
     void placeOrderDecreasesStock() throws Exception {
         int stockBefore = productRepository.findById(2L).orElseThrow().getStock();
@@ -44,5 +47,45 @@ class OrderControllerTests {
 
         int stockAfter = productRepository.findById(2L).orElseThrow().getStock();
         assertThat(stockAfter).isEqualTo(stockBefore - 3);
+    }
+
+    @Test
+    void placeOrderWithNotEnoughStockReturns409AndChangesNothing() throws Exception {
+        int stockBefore = productRepository.findById(2L).orElseThrow().getStock();
+        long ordersBefore = orderRepository.count();
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"productId": 2, "quantity": %d}
+                                """.formatted(stockBefore + 1)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        "Not enough stock for product 2: requested " + (stockBefore + 1) + ", available " + stockBefore));
+
+        assertThat(productRepository.findById(2L).orElseThrow().getStock()).isEqualTo(stockBefore);
+        assertThat(orderRepository.count()).isEqualTo(ordersBefore);
+    }
+
+    @Test
+    void placeOrderForUnknownProductReturns404() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"productId": 999, "quantity": 1}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Product 999 not found"));
+    }
+
+    @Test
+    void placeOrderWithZeroQuantityReturns400() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"productId": 2, "quantity": 0}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.quantity").exists());
     }
 }
