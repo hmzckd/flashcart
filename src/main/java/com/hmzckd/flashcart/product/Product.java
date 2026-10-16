@@ -44,4 +44,10 @@ public class Product {
     public int getStock() {
         return stock;
     }
+
+    public void decreaseStock(int quantity) {
+        this.stock -= quantity;
+    }
+
+
 }
