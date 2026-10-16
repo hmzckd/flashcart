@@ -20,7 +20,7 @@ public class OrderService {
 
     @Transactional
     public OrderResponse placeOrder(CreateOrderRequest request) {
-        Product product = productRepository.findById(request.productId())
+        Product product = productRepository.findByIdForUpdate(request.productId())
                 .orElseThrow(() -> new ProductNotFoundException(request.productId()));
         product.decreaseStock(request.quantity());
         Order order = orderRepository.save(new Order(product, request.quantity()));
