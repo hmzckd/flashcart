@@ -34,6 +34,12 @@ public class Product {
     protected Product() {
     }
 
+    public Product(String name, BigDecimal price, int stock) {
+        this.name = name;
+        this.price = price;
+        this.stock = stock;
+    }
+
     public Long getId() {
         return id;
     }
@@ -55,5 +61,9 @@ public class Product {
             throw new InsufficientStockException(id, quantity, stock);
         }
         this.stock -= quantity;
+    }
+
+    public void increaseStock(int quantity) {
+        this.stock += quantity;
     }
 }

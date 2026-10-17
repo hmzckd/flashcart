@@ -36,6 +36,28 @@ _Avoid_: Price (when talking about an order)
 The situation where an order asks for a larger quantity than the product's stock. The order is rejected and nothing changes.
 _Avoid_: Out of stock, sold out (those mean the stock is zero)
 
+### Order status
+
+**Order status**:
+Where an order is in its life: pending, paid, shipped or cancelled.
+_Avoid_: State, stage
+
+**Pending**:
+An order that has been placed but not paid. Its units are already taken from the stock.
+_Avoid_: New, open, created
+
+**Paid**:
+An order whose payment has been received and which is waiting to be shipped.
+_Avoid_: Confirmed, completed
+
+**Shipped**:
+An order that has been sent to the customer. It can no longer change.
+_Avoid_: Delivered, completed, fulfilled
+
+**Cancelled**:
+An order that will not go ahead. Its units go back to the stock and it can no longer change.
+_Avoid_: Deleted, voided, refunded
+
 ### Flash sales
 
 **Flash sale**:
