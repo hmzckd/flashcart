@@ -7,6 +7,8 @@ import com.hmzckd.flashcart.product.Product;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -14,6 +16,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "orders")
@@ -36,6 +39,14 @@ public class Order {
     @Column(nullable = false)
     private Instant createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderStatus status;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
+
     protected Order() {
     }
 
@@ -44,6 +55,7 @@ public class Order {
         this.quantity = quantity;
         this.unitPrice = product.getPrice();
         this.createdAt = Instant.now();
+        this.status = OrderStatus.PENDING;
     }
 
     public Long getId() {
@@ -64,5 +76,28 @@ public class Order {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public OrderStatus getStatus() {
+        return status;
+    }
+
+    public void pay() {
+        moveTo(OrderStatus.PAID);
+    }
+
+    public void ship() {
+        moveTo(OrderStatus.SHIPPED);
+    }
+
+    public void cancel() {
+        moveTo(OrderStatus.CANCELLED);
+    }
+
+    private void moveTo(OrderStatus next) {
+        if (!status.canMoveTo(next)) {
+            throw new OrderStatusChangeNotAllowedException(id, status, next);
+        }
+        this.status = next;
     }
 }
