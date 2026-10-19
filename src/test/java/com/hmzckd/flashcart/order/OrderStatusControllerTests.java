@@ -61,6 +61,7 @@ class OrderStatusControllerTests {
 
     @AfterEach
     void deleteProduct() {
+        jdbcTemplate.update("DELETE FROM outbox_messages");
         jdbcTemplate.update("DELETE FROM payment_events");
         jdbcTemplate.update("DELETE FROM refunds WHERE order_id IN (SELECT id FROM orders WHERE product_id = ?)",
                 productId);

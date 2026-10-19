@@ -52,6 +52,14 @@ public class Refund {
         this.createdAt = Instant.now();
     }
 
+    void markSent() {
+        status = RefundStatus.SENT;
+    }
+
+    void markFailed() {
+        status = RefundStatus.FAILED;
+    }
+
     public Long getId() {
         return id;
     }
