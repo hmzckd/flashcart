@@ -1,5 +1,6 @@
 package com.hmzckd.flashcart.order;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -19,12 +20,14 @@ public class OrderService {
 
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
+    private final RefundRepository refundRepository;
     private final StockLocking stockLocking;
 
     public OrderService(ProductRepository productRepository, OrderRepository orderRepository,
-            @Value("${flashcart.stock-locking}") StockLocking stockLocking) {
+            RefundRepository refundRepository, @Value("${flashcart.stock-locking}") StockLocking stockLocking) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
+        this.refundRepository = refundRepository;
         this.stockLocking = stockLocking;
     }
 
@@ -41,11 +44,12 @@ public class OrderService {
         return OrderResponse.from(findOrder(orderId));
     }
 
-    @Transactional
-    public OrderResponse payOrder(Long orderId) {
+    @Transactional(readOnly = true)
+    public List<RefundResponse> getRefunds(Long orderId) {
         Order order = findOrder(orderId);
-        order.pay();
-        return OrderResponse.from(order);
+        return refundRepository.findByOrderIdOrderByIdAsc(order.getId()).stream()
+                .map(RefundResponse::from)
+                .toList();
     }
 
     @Transactional
@@ -58,7 +62,7 @@ public class OrderService {
     @Transactional
     public OrderResponse cancelOrder(Long orderId) {
         Order order = findOrder(orderId);
-        order.cancel();
+        order.cancel().ifPresent(refundRepository::save);
         Product product = findProductWithStockLocking(order.getProduct().getId());
         product.increaseStock(order.getQuantity());
         return OrderResponse.from(order);
