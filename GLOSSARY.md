@@ -81,8 +81,26 @@ How much money a payment or a refund is for.
 _Avoid_: Price, total (those belong to products and orders)
 
 **Refund**:
-Money FlashCart owes back to a customer, because a paid order was cancelled or because a payment arrived that the order could not accept. FlashCart records it as requested; sending it to the payment provider comes later.
+Money FlashCart owes back to a customer, because a paid order was cancelled or because a payment arrived that the order could not accept. FlashCart records it and sends it to the payment provider, which pays the money back.
 _Avoid_: Chargeback, reversal
+
+### Refund status
+
+**Refund status**:
+Where a refund is on its way to the payment provider: requested, sent or failed.
+_Avoid_: State, stage
+
+**Requested**:
+A refund FlashCart owes that the payment provider has not accepted yet. FlashCart keeps sending it until the provider accepts it or five attempts have failed.
+_Avoid_: Pending, open (pending belongs to orders)
+
+**Sent**:
+A refund the payment provider has accepted. It does not say that the money has reached the customer.
+_Avoid_: Refunded, completed, paid out
+
+**Failed**:
+A refund the payment provider did not accept in five attempts. FlashCart stops sending it, and someone has to handle it by hand.
+_Avoid_: Rejected, cancelled
 
 ### Flash sales
 

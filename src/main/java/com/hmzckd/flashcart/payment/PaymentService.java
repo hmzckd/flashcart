@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hmzckd.flashcart.order.Order;
 import com.hmzckd.flashcart.order.OrderRepository;
-import com.hmzckd.flashcart.order.RefundRepository;
+import com.hmzckd.flashcart.order.RefundService;
 
 @Service
 public class PaymentService {
@@ -19,13 +19,13 @@ public class PaymentService {
 
     private final PaymentEventLog paymentEventLog;
     private final OrderRepository orderRepository;
-    private final RefundRepository refundRepository;
+    private final RefundService refundService;
 
     public PaymentService(PaymentEventLog paymentEventLog, OrderRepository orderRepository,
-            RefundRepository refundRepository) {
+            RefundService refundService) {
         this.paymentEventLog = paymentEventLog;
         this.orderRepository = orderRepository;
-        this.refundRepository = refundRepository;
+        this.refundService = refundService;
     }
 
     @Transactional
@@ -44,6 +44,6 @@ public class PaymentService {
             log.warn("Payment event {} is for unknown order {}", event.id(), event.orderId());
             return;
         }
-        order.get().receivePayment(event.amount()).ifPresent(refundRepository::save);
+        order.get().receivePayment(event.amount()).ifPresent(refundService::request);
     }
 }
