@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.hmzckd.flashcart.order.OrderNotFoundException;
 import com.hmzckd.flashcart.order.OrderStatusChangeNotAllowedException;
+import com.hmzckd.flashcart.payment.InvalidPaymentEventException;
+import com.hmzckd.flashcart.payment.InvalidPaymentSignatureException;
 import com.hmzckd.flashcart.product.InsufficientStockException;
 import com.hmzckd.flashcart.product.ProductNotFoundException;
 
@@ -37,6 +39,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OrderStatusChangeNotAllowedException.class)
     public ProblemDetail handleOrderStatusChangeNotAllowed(OrderStatusChangeNotAllowedException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPaymentEventException.class)
+    public ProblemDetail handleInvalidPaymentEvent(InvalidPaymentEventException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPaymentSignatureException.class)
+    public ProblemDetail handleInvalidPaymentSignature(InvalidPaymentSignatureException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)

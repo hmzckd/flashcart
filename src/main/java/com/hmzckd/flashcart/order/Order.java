@@ -2,6 +2,7 @@ package com.hmzckd.flashcart.order;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 
 import com.hmzckd.flashcart.product.Product;
 
@@ -82,7 +83,18 @@ public class Order {
         return status;
     }
 
-    public void pay() {
+    public Optional<Refund> receivePayment(BigDecimal amount) {
+        if (!status.canMoveTo(OrderStatus.PAID)) {
+            return Optional.of(new Refund(this, amount, RefundReason.ORDER_NOT_PENDING));
+        }
+        if (total().compareTo(amount) != 0) {
+            return Optional.of(new Refund(this, amount, RefundReason.AMOUNT_MISMATCH));
+        }
+        pay();
+        return Optional.empty();
+    }
+
+    void pay() {
         moveTo(OrderStatus.PAID);
     }
 
@@ -90,8 +102,17 @@ public class Order {
         moveTo(OrderStatus.SHIPPED);
     }
 
-    public void cancel() {
+    public Optional<Refund> cancel() {
+        OrderStatus previous = status;
         moveTo(OrderStatus.CANCELLED);
+        if (previous == OrderStatus.PAID) {
+            return Optional.of(new Refund(this, total(), RefundReason.ORDER_CANCELLED));
+        }
+        return Optional.empty();
+    }
+
+    private BigDecimal total() {
+        return unitPrice.multiply(BigDecimal.valueOf(quantity));
     }
 
     private void moveTo(OrderStatus next) {

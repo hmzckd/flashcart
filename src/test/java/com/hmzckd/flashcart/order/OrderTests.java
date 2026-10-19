@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -98,7 +99,77 @@ class OrderTests {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
     }
 
+    @Test
+    void paymentOfTheTotalMarksOrderPaid() {
+        Order order = placedOrder();
+
+        Optional<Refund> refund = order.receivePayment(new BigDecimal("300.00"));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        assertThat(refund).isEmpty();
+    }
+
+    @Test
+    void paymentWithoutDecimalsStillMatchesTheTotal() {
+        Order order = placedOrder();
+
+        Optional<Refund> refund = order.receivePayment(new BigDecimal("300"));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        assertThat(refund).isEmpty();
+    }
+
+    @Test
+    void paymentWithWrongAmountIsRefundedAndOrderStaysPending() {
+        Order order = placedOrder();
+
+        Optional<Refund> refund = order.receivePayment(new BigDecimal("30.00"));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(refund).hasValueSatisfying(owed -> {
+            assertThat(owed.getAmount()).isEqualByComparingTo("30.00");
+            assertThat(owed.getReason()).isEqualTo(RefundReason.AMOUNT_MISMATCH);
+        });
+    }
+
+    @Test
+    void paymentForCancelledOrderIsRefunded() {
+        Order order = placedOrder();
+        order.cancel();
+
+        Optional<Refund> refund = order.receivePayment(new BigDecimal("300.00"));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(refund).hasValueSatisfying(owed -> {
+            assertThat(owed.getAmount()).isEqualByComparingTo("300.00");
+            assertThat(owed.getReason()).isEqualTo(RefundReason.ORDER_NOT_PENDING);
+        });
+    }
+
+    @Test
+    void cancellingPaidOrderOwesARefundOfTheTotal() {
+        Order order = placedOrder();
+        order.pay();
+
+        Optional<Refund> refund = order.cancel();
+
+        assertThat(refund).hasValueSatisfying(owed -> {
+            assertThat(owed.getAmount()).isEqualByComparingTo("300.00");
+            assertThat(owed.getReason()).isEqualTo(RefundReason.ORDER_CANCELLED);
+            assertThat(owed.getStatus()).isEqualTo(RefundStatus.REQUESTED);
+        });
+    }
+
+    @Test
+    void cancellingPendingOrderOwesNoRefund() {
+        Order order = placedOrder();
+
+        Optional<Refund> refund = order.cancel();
+
+        assertThat(refund).isEmpty();
+    }
+
     private static Order placedOrder() {
-        return new Order(new Product("Flash Sale Item", new BigDecimal("100.00"), 10), 1);
+        return new Order(new Product("Flash Sale Item", new BigDecimal("100.00"), 10), 3);
     }
 }

@@ -1,5 +1,7 @@
 package com.hmzckd.flashcart.order;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,9 +34,9 @@ public class OrderController {
         return orderService.getOrder(id);
     }
 
-    @PostMapping("/{id}/pay")
-    public OrderResponse pay(@PathVariable Long id) {
-        return orderService.payOrder(id);
+    @GetMapping("/{id}/refunds")
+    public List<RefundResponse> refunds(@PathVariable Long id) {
+        return orderService.getRefunds(id);
     }
 
     @PostMapping("/{id}/ship")
