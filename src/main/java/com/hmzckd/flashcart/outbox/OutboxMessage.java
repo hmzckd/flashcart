@@ -17,7 +17,7 @@ import jakarta.persistence.Table;
 @Table(name = "outbox_messages")
 class OutboxMessage {
 
-    private static final int MAX_ATTEMPTS = 5;
+    private static final Duration MAX_WAIT = Duration.ofSeconds(60);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,6 +25,9 @@ class OutboxMessage {
 
     @Column(nullable = false)
     private String type;
+
+    @Column(nullable = false)
+    private String messageKey;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)
@@ -46,8 +49,9 @@ class OutboxMessage {
     protected OutboxMessage() {
     }
 
-    OutboxMessage(String type, String payload, Instant now) {
+    OutboxMessage(String type, String messageKey, String payload, Instant now) {
         this.type = type;
+        this.messageKey = messageKey;
         this.payload = payload;
         this.createdAt = now;
         this.nextAttemptAt = now;
@@ -58,13 +62,24 @@ class OutboxMessage {
         sentAt = now;
     }
 
-    void recordFailedAttempt(Instant now) {
+    void recordFailedAttempt(Instant now, RetryPolicy retryPolicy) {
         attempts++;
-        if (attempts >= MAX_ATTEMPTS) {
+        if (retryPolicy == RetryPolicy.GIVE_UP_AFTER_FIVE_ATTEMPTS && hasFailedFiveTimes()) {
             failedAt = now;
         } else {
-            nextAttemptAt = now.plus(Duration.ofSeconds(1L << (attempts - 1)));
+            nextAttemptAt = now.plus(waitAfterFailedAttempt());
         }
+    }
+
+    boolean hasFailedFiveTimes() {
+        return attempts >= 5;
+    }
+
+    private Duration waitAfterFailedAttempt() {
+        if (attempts > 6) {
+            return MAX_WAIT;
+        }
+        return Duration.ofSeconds(1L << (attempts - 1));
     }
 
     boolean isFailed() {

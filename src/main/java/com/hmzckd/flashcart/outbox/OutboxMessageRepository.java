@@ -12,9 +12,14 @@ import jakarta.persistence.LockModeType;
 interface OutboxMessageRepository extends JpaRepository<OutboxMessage, Long> {
 
     @Query(value = """
-            SELECT * FROM outbox_messages
-            WHERE sent_at IS NULL AND failed_at IS NULL AND next_attempt_at <= :now
-            ORDER BY id
+            SELECT * FROM outbox_messages m
+            WHERE m.sent_at IS NULL AND m.failed_at IS NULL AND m.next_attempt_at <= :now
+              AND NOT EXISTS (
+                  SELECT 1 FROM outbox_messages earlier
+                  WHERE earlier.message_key = m.message_key
+                    AND earlier.id < m.id
+                    AND earlier.sent_at IS NULL AND earlier.failed_at IS NULL)
+            ORDER BY m.id
             LIMIT 1
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)

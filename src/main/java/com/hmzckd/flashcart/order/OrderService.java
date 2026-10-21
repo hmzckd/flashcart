@@ -22,15 +22,17 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final RefundRepository refundRepository;
     private final RefundService refundService;
+    private final OrderEvents orderEvents;
     private final StockLocking stockLocking;
 
     public OrderService(ProductRepository productRepository, OrderRepository orderRepository,
-            RefundRepository refundRepository, RefundService refundService,
+            RefundRepository refundRepository, RefundService refundService, OrderEvents orderEvents,
             @Value("${flashcart.stock-locking}") StockLocking stockLocking) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.refundRepository = refundRepository;
         this.refundService = refundService;
+        this.orderEvents = orderEvents;
         this.stockLocking = stockLocking;
     }
 
@@ -39,6 +41,7 @@ public class OrderService {
         Product product = findProductWithStockLocking(request.productId());
         product.decreaseStock(request.quantity());
         Order order = orderRepository.save(new Order(product, request.quantity()));
+        orderEvents.record(order);
         return OrderResponse.from(order);
     }
 
@@ -59,6 +62,7 @@ public class OrderService {
     public OrderResponse shipOrder(Long orderId) {
         Order order = findOrder(orderId);
         order.ship();
+        orderEvents.record(order);
         return OrderResponse.from(order);
     }
 
@@ -66,6 +70,7 @@ public class OrderService {
     public OrderResponse cancelOrder(Long orderId) {
         Order order = findOrder(orderId);
         order.cancel().ifPresent(refundService::request);
+        orderEvents.record(order);
         Product product = findProductWithStockLocking(order.getProduct().getId());
         product.increaseStock(order.getQuantity());
         return OrderResponse.from(order);

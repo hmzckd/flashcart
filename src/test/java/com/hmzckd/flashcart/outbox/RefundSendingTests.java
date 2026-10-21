@@ -55,6 +55,7 @@ import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hmzckd.flashcart.MutableClock;
 import com.hmzckd.flashcart.TestcontainersConfiguration;
+import com.hmzckd.flashcart.order.OrderEvent;
 import com.hmzckd.flashcart.payment.TestPaymentProvider;
 import com.jayway.jsonpath.JsonPath;
 
@@ -262,7 +263,7 @@ class RefundSendingTests {
     @Test
     void messageForMissingRefundIsTriedFiveTimesWithoutHoldingUpOthers() throws Exception {
         provider.stubFor(WireMock.post("/refunds").willReturn(ok()));
-        insertOutboxMessage("RefundRequested", """
+        insertOutboxMessage("RefundRequested", "refund-999999", """
                 {"refundId": 999999, "orderId": 999999, "amount": 1.00}
                 """);
         long orderId = cancelledPaidOrder();
@@ -281,7 +282,7 @@ class RefundSendingTests {
     @Test
     void messageOfUnknownTypeDoesNotHoldUpOthers() throws Exception {
         provider.stubFor(WireMock.post("/refunds").willReturn(ok()));
-        insertOutboxMessage("UnknownType", "{}");
+        insertOutboxMessage("UnknownType", "unknown-1", "{}");
         long orderId = cancelledPaidOrder();
 
         outboxRelay.sendDue();
@@ -327,6 +328,7 @@ class RefundSendingTests {
         for (int i = 0; i < ORDERS; i++) {
             orderIds.add(cancelledPaidOrder(1));
         }
+        jdbcTemplate.update("DELETE FROM outbox_messages WHERE type = ?", OrderEvent.OUTBOX_TYPE);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         CountDownLatch startSignal = new CountDownLatch(1);
         List<Future<?>> relays = new ArrayList<>();
@@ -359,10 +361,10 @@ class RefundSendingTests {
         assertThat(orderIds).allSatisfy(orderId -> assertThat(refundStatus(orderId)).isEqualTo("SENT"));
     }
 
-    private void insertOutboxMessage(String type, String payload) {
+    private void insertOutboxMessage(String type, String messageKey, String payload) {
         Timestamp now = Timestamp.from(clock.instant());
-        jdbcTemplate.update("INSERT INTO outbox_messages (type, payload, created_at, next_attempt_at) "
-                + "VALUES (?, ?::jsonb, ?, ?)", type, payload, now, now);
+        jdbcTemplate.update("INSERT INTO outbox_messages (type, message_key, payload, created_at, next_attempt_at) "
+                + "VALUES (?, ?, ?::jsonb, ?, ?)", type, messageKey, payload, now, now);
     }
 
     private long cancelledPaidOrder() throws Exception {

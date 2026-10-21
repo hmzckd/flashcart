@@ -22,8 +22,8 @@ public class Outbox {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void add(String type, Object payload) {
+    public void add(String type, String messageKey, Object payload) {
         outboxMessageRepository.save(
-                new OutboxMessage(type, jsonMapper.writeValueAsString(payload), clock.instant()));
+                new OutboxMessage(type, messageKey, jsonMapper.writeValueAsString(payload), clock.instant()));
     }
 }

@@ -48,13 +48,37 @@ class OutboxTests {
 
     @Test
     void addingOutsideATransactionIsRefused() {
-        assertThatThrownBy(() -> outbox.add(RefundRequested.TYPE, Map.of()))
+        assertThatThrownBy(() -> outbox.add(RefundRequested.TYPE, "refund-1", Map.of()))
                 .isInstanceOf(IllegalTransactionStateException.class);
     }
 
     @Test
     void migrationQueuesRefundsRequestedBeforeTheOutboxExisted() {
         migrateTo("5");
+        RefundRequested refund = insertRequestedRefund();
+
+        migrateTo("6");
+
+        List<Map<String, Object>> messages = jdbcTemplate.queryForList(
+                "SELECT type, payload::text AS payload FROM " + SCHEMA + ".outbox_messages");
+        assertThat(messages).hasSize(1);
+        assertThat(messages.getFirst().get("type")).isEqualTo(RefundRequested.TYPE);
+        assertThat(jsonMapper.readValue((String) messages.getFirst().get("payload"), RefundRequested.class))
+                .isEqualTo(refund);
+    }
+
+    @Test
+    void migrationGivesQueuedRefundsAMessageKey() {
+        migrateTo("5");
+        RefundRequested refund = insertRequestedRefund();
+
+        migrateTo("7");
+
+        assertThat(jdbcTemplate.queryForList("SELECT message_key FROM " + SCHEMA + ".outbox_messages", String.class))
+                .containsExactly("refund-" + refund.refundId());
+    }
+
+    private RefundRequested insertRequestedRefund() {
         long productId = jdbcTemplate.queryForObject(
                 "INSERT INTO " + SCHEMA + ".products (name, price, stock) VALUES ('Item', 100.00, 10) RETURNING id",
                 Long.class);
@@ -66,15 +90,7 @@ class OutboxTests {
                 "INSERT INTO " + SCHEMA + ".refunds (order_id, amount, reason, status, created_at) "
                         + "VALUES (?, 300.00, 'ORDER_CANCELLED', 'REQUESTED', now()) RETURNING id",
                 Long.class, orderId);
-
-        migrateTo("6");
-
-        List<Map<String, Object>> messages = jdbcTemplate.queryForList(
-                "SELECT type, payload::text AS payload FROM " + SCHEMA + ".outbox_messages");
-        assertThat(messages).hasSize(1);
-        assertThat(messages.getFirst().get("type")).isEqualTo(RefundRequested.TYPE);
-        assertThat(jsonMapper.readValue((String) messages.getFirst().get("payload"), RefundRequested.class))
-                .isEqualTo(new RefundRequested(refundId, orderId, new BigDecimal("300.00")));
+        return new RefundRequested(refundId, orderId, new BigDecimal("300.00"));
     }
 
     private void migrateTo(String version) {

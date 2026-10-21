@@ -13,7 +13,9 @@ import org.springframework.web.client.RestClientException;
 
 import com.hmzckd.flashcart.order.RefundRequested;
 import com.hmzckd.flashcart.order.RefundService;
+import com.hmzckd.flashcart.outbox.DeliveryFailedException;
 import com.hmzckd.flashcart.outbox.OutboxMessageHandler;
+import com.hmzckd.flashcart.outbox.RetryPolicy;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -46,18 +48,27 @@ class RefundRequestHandler implements OutboxMessageHandler {
     }
 
     @Override
+    public RetryPolicy retryPolicy() {
+        return RetryPolicy.GIVE_UP_AFTER_FIVE_ATTEMPTS;
+    }
+
+    @Override
     public void send(String payload) {
         RefundRequested refundRequest = read(payload);
-        restClient.post()
-                .uri("/refunds")
-                .header("Idempotency-Key", "refund-" + refundRequest.refundId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(payload)
-                .retrieve()
-                .onStatus(status -> !status.is2xxSuccessful(), (request, response) -> {
-                    throw new RestClientException("Payment provider answered " + response.getStatusCode());
-                })
-                .toBodilessEntity();
+        try {
+            restClient.post()
+                    .uri("/refunds")
+                    .header("Idempotency-Key", "refund-" + refundRequest.refundId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .onStatus(status -> !status.is2xxSuccessful(), (request, response) -> {
+                        throw new RestClientException("Payment provider answered " + response.getStatusCode());
+                    })
+                    .toBodilessEntity();
+        } catch (RestClientException ex) {
+            throw new DeliveryFailedException("Payment provider did not accept refund " + refundRequest.refundId(), ex);
+        }
         refundService.markSent(refundRequest.refundId());
     }
 

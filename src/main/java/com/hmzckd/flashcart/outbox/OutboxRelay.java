@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.client.RestClientException;
 
 @Component
 public class OutboxRelay {
@@ -69,12 +68,15 @@ public class OutboxRelay {
         try {
             handler.send(message.getPayload());
             message.markSent(clock.instant());
-        } catch (RestClientException ex) {
-            message.recordFailedAttempt(clock.instant());
+        } catch (DeliveryFailedException ex) {
+            message.recordFailedAttempt(clock.instant(), handler.retryPolicy());
             if (message.isFailed()) {
                 handler.giveUp(message.getPayload());
                 log.error("Outbox message {} {} failed after {} attempts",
                         message.getId(), message.getPayload(), message.getAttempts(), ex);
+            } else if (message.hasFailedFiveTimes()) {
+                log.error("Outbox message {} attempt {} failed, next attempt at {}",
+                        message.getId(), message.getAttempts(), message.getNextAttemptAt(), ex);
             } else {
                 log.warn("Outbox message {} attempt {} failed, next attempt at {}: {}",
                         message.getId(), message.getAttempts(), message.getNextAttemptAt(), ex.getMessage());
@@ -92,9 +94,14 @@ public class OutboxRelay {
 
     private void recordUnexpectedFailure(UnexpectedFailure failure) {
         OutboxMessage message = outboxMessageRepository.findByIdForUpdate(failure.messageId).orElseThrow();
-        message.recordFailedAttempt(clock.instant());
+        message.recordFailedAttempt(clock.instant(), retryPolicyFor(message));
         log.error("Outbox message {} {} attempt {} failed with an unexpected error",
                 message.getId(), message.getPayload(), message.getAttempts(), failure.getCause());
+    }
+
+    private RetryPolicy retryPolicyFor(OutboxMessage message) {
+        OutboxMessageHandler handler = handlers.get(message.getType());
+        return handler == null ? RetryPolicy.GIVE_UP_AFTER_FIVE_ATTEMPTS : handler.retryPolicy();
     }
 
     private static final class UnexpectedFailure extends RuntimeException {
