@@ -20,7 +20,7 @@ public class RefundService {
 
     public void request(Refund refund) {
         refundRepository.save(refund);
-        outbox.add(RefundRequested.TYPE, RefundRequested.from(refund));
+        outbox.add(RefundRequested.TYPE, "refund-" + refund.getId(), RefundRequested.from(refund));
     }
 
     public void markSent(Long refundId) {

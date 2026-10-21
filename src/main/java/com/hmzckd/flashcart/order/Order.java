@@ -111,7 +111,7 @@ public class Order {
         return Optional.empty();
     }
 
-    private BigDecimal total() {
+    BigDecimal total() {
         return unitPrice.multiply(BigDecimal.valueOf(quantity));
     }
 

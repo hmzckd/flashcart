@@ -102,6 +102,38 @@ _Avoid_: Refunded, completed, paid out
 A refund the payment provider did not accept in five attempts. FlashCart stops sending it, and someone has to handle it by hand.
 _Avoid_: Rejected, cancelled
 
+### Order events
+
+**Order event**:
+A message FlashCart publishes to other services when an order's status changes. Each order event has its own event id, and a service may receive the same order event more than once.
+_Avoid_: Notification, payment event, webhook
+
+**Order placed**:
+The order event for a new pending order.
+_Avoid_: Order created
+
+**Order paid**:
+The order event for an order that has become paid.
+_Avoid_: Payment succeeded (that is a payment event)
+
+**Order shipped**:
+The order event for an order that has been shipped.
+_Avoid_: Order delivered
+
+**Order cancelled**:
+The order event for an order that has been cancelled.
+_Avoid_: Order refunded, order deleted
+
+### Notifications
+
+**Notification**:
+A short message for the customer about one order event, such as "Order 5 was shipped". The notification service writes one for each order event it receives, only once however many times the event arrives. It is not sent to the customer yet.
+_Avoid_: Email, alert, message
+
+**Dead letter**:
+A message the notification service could not handle in three attempts, for example because it is not valid JSON or because the notification database was down. It is moved to a separate topic so that the order events after it can go on, and someone has to look at it.
+_Avoid_: Failed notification, poison message
+
 ### Flash sales
 
 **Flash sale**:

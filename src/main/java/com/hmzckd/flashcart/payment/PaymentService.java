@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.hmzckd.flashcart.order.Order;
+import com.hmzckd.flashcart.order.OrderEvents;
 import com.hmzckd.flashcart.order.OrderRepository;
 import com.hmzckd.flashcart.order.RefundService;
 
@@ -20,12 +21,14 @@ public class PaymentService {
     private final PaymentEventLog paymentEventLog;
     private final OrderRepository orderRepository;
     private final RefundService refundService;
+    private final OrderEvents orderEvents;
 
     public PaymentService(PaymentEventLog paymentEventLog, OrderRepository orderRepository,
-            RefundService refundService) {
+            RefundService refundService, OrderEvents orderEvents) {
         this.paymentEventLog = paymentEventLog;
         this.orderRepository = orderRepository;
         this.refundService = refundService;
+        this.orderEvents = orderEvents;
     }
 
     @Transactional
@@ -44,6 +47,7 @@ public class PaymentService {
             log.warn("Payment event {} is for unknown order {}", event.id(), event.orderId());
             return;
         }
-        order.get().receivePayment(event.amount()).ifPresent(refundService::request);
+        order.get().receivePayment(event.amount())
+                .ifPresentOrElse(refundService::request, () -> orderEvents.record(order.get()));
     }
 }

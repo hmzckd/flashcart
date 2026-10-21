@@ -4,7 +4,10 @@ public interface OutboxMessageHandler {
 
     String type();
 
+    RetryPolicy retryPolicy();
+
     void send(String payload);
 
-    void giveUp(String payload);
+    default void giveUp(String payload) {
+    }
 }
