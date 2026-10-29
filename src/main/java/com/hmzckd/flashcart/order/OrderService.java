@@ -23,26 +23,38 @@ public class OrderService {
     private final RefundRepository refundRepository;
     private final RefundService refundService;
     private final OrderEvents orderEvents;
+    private final OrderIdempotencyKeys idempotencyKeys;
     private final StockLocking stockLocking;
 
     public OrderService(ProductRepository productRepository, OrderRepository orderRepository,
             RefundRepository refundRepository, RefundService refundService, OrderEvents orderEvents,
-            @Value("${flashcart.stock-locking}") StockLocking stockLocking) {
+            OrderIdempotencyKeys idempotencyKeys, @Value("${flashcart.stock-locking}") StockLocking stockLocking) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.refundRepository = refundRepository;
         this.refundService = refundService;
         this.orderEvents = orderEvents;
+        this.idempotencyKeys = idempotencyKeys;
         this.stockLocking = stockLocking;
     }
 
     @Transactional
     public OrderResponse placeOrder(CreateOrderRequest request) {
-        Product product = findProductWithStockLocking(request.productId());
-        product.decreaseStock(request.quantity());
-        Order order = orderRepository.save(new Order(product, request.quantity()));
-        orderEvents.record(order);
-        return OrderResponse.from(order);
+        return OrderResponse.from(placeNewOrder(request));
+    }
+
+    @Transactional
+    public PlacedOrder placeOrder(CreateOrderRequest request, IdempotencyKey idempotencyKey) {
+        if (!idempotencyKeys.claim(idempotencyKey)) {
+            Order order = findOrder(idempotencyKeys.orderIdFor(idempotencyKey));
+            if (!order.isFor(request.productId(), request.quantity())) {
+                throw new IdempotencyKeyReusedException(idempotencyKey);
+            }
+            return new PlacedOrder(OrderResponse.from(order), true);
+        }
+        Order order = placeNewOrder(request);
+        idempotencyKeys.link(idempotencyKey, order.getId());
+        return new PlacedOrder(OrderResponse.from(order), false);
     }
 
     @Transactional(readOnly = true)
@@ -74,6 +86,14 @@ public class OrderService {
         Product product = findProductWithStockLocking(order.getProduct().getId());
         product.increaseStock(order.getQuantity());
         return OrderResponse.from(order);
+    }
+
+    private Order placeNewOrder(CreateOrderRequest request) {
+        Product product = findProductWithStockLocking(request.productId());
+        product.decreaseStock(request.quantity());
+        Order order = orderRepository.save(new Order(product, request.quantity()));
+        orderEvents.record(order);
+        return order;
     }
 
     private Order findOrder(Long orderId) {

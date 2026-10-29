@@ -111,6 +111,10 @@ public class Order {
         return Optional.empty();
     }
 
+    boolean isFor(Long productId, int quantity) {
+        return product.getId().equals(productId) && this.quantity == quantity;
+    }
+
     BigDecimal total() {
         return unitPrice.multiply(BigDecimal.valueOf(quantity));
     }
