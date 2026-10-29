@@ -11,6 +11,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.hmzckd.flashcart.order.IdempotencyKeyReusedException;
+import com.hmzckd.flashcart.order.InvalidIdempotencyKeyException;
 import com.hmzckd.flashcart.order.OrderNotFoundException;
 import com.hmzckd.flashcart.order.OrderStatusChangeNotAllowedException;
 import com.hmzckd.flashcart.payment.InvalidPaymentEventException;
@@ -39,6 +41,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OrderStatusChangeNotAllowedException.class)
     public ProblemDetail handleOrderStatusChangeNotAllowed(OrderStatusChangeNotAllowedException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidIdempotencyKeyException.class)
+    public ProblemDetail handleInvalidIdempotencyKey(InvalidIdempotencyKeyException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(IdempotencyKeyReusedException.class)
+    public ProblemDetail handleIdempotencyKeyReused(IdempotencyKeyReusedException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
     }
 
     @ExceptionHandler(InvalidPaymentEventException.class)

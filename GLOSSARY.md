@@ -40,6 +40,10 @@ _Avoid_: Sum, grand total, amount
 The situation where an order asks for a larger quantity than the product's stock. The order is rejected and nothing changes.
 _Avoid_: Out of stock, sold out (those mean the stock is zero)
 
+**Idempotency key**:
+A string of 1 to 255 characters that a client may send with a new order, picked once for that order. If the same key arrives again, FlashCart places no new order and answers with the order it placed for that key.
+_Avoid_: Request id, order number, event id
+
 ### Order status
 
 **Order status**:
