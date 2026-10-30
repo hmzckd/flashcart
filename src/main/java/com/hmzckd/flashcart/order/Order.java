@@ -51,11 +51,11 @@ public class Order {
     protected Order() {
     }
 
-    public Order(Product product, int quantity) {
+    public Order(Product product, int quantity, Instant createdAt) {
         this.product = product;
         this.quantity = quantity;
         this.unitPrice = product.getPrice();
-        this.createdAt = Instant.now();
+        this.createdAt = createdAt;
         this.status = OrderStatus.PENDING;
     }
 
@@ -113,6 +113,10 @@ public class Order {
 
     boolean isFor(Long productId, int quantity) {
         return product.getId().equals(productId) && this.quantity == quantity;
+    }
+
+    boolean isPendingAndPlacedAtOrBefore(Instant cutoff) {
+        return status == OrderStatus.PENDING && !createdAt.isAfter(cutoff);
     }
 
     BigDecimal total() {

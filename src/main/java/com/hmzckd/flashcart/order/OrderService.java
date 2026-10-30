@@ -1,5 +1,7 @@
 package com.hmzckd.flashcart.order;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,10 +27,12 @@ public class OrderService {
     private final OrderEvents orderEvents;
     private final OrderIdempotencyKeys idempotencyKeys;
     private final StockLocking stockLocking;
+    private final Clock clock;
 
     public OrderService(ProductRepository productRepository, OrderRepository orderRepository,
             RefundRepository refundRepository, RefundService refundService, OrderEvents orderEvents,
-            OrderIdempotencyKeys idempotencyKeys, @Value("${flashcart.stock-locking}") StockLocking stockLocking) {
+            OrderIdempotencyKeys idempotencyKeys, @Value("${flashcart.stock-locking}") StockLocking stockLocking,
+            Clock clock) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.refundRepository = refundRepository;
@@ -36,6 +40,7 @@ public class OrderService {
         this.orderEvents = orderEvents;
         this.idempotencyKeys = idempotencyKeys;
         this.stockLocking = stockLocking;
+        this.clock = clock;
     }
 
     @Transactional
@@ -81,19 +86,33 @@ public class OrderService {
     @Transactional
     public OrderResponse cancelOrder(Long orderId) {
         Order order = findOrder(orderId);
-        order.cancel().ifPresent(refundService::request);
-        orderEvents.record(order);
-        Product product = findProductWithStockLocking(order.getProduct().getId());
-        product.increaseStock(order.getQuantity());
+        cancel(order);
         return OrderResponse.from(order);
+    }
+
+    @Transactional
+    public boolean cancelIfPaymentDeadlinePassed(Long orderId, Instant cutoff) {
+        Order order = findOrder(orderId);
+        if (!order.isPendingAndPlacedAtOrBefore(cutoff)) {
+            return false;
+        }
+        cancel(order);
+        return true;
     }
 
     private Order placeNewOrder(CreateOrderRequest request) {
         Product product = findProductWithStockLocking(request.productId());
         product.decreaseStock(request.quantity());
-        Order order = orderRepository.save(new Order(product, request.quantity()));
+        Order order = orderRepository.save(new Order(product, request.quantity(), clock.instant()));
         orderEvents.record(order);
         return order;
+    }
+
+    private void cancel(Order order) {
+        order.cancel().ifPresent(refundService::request);
+        orderEvents.record(order);
+        Product product = findProductWithStockLocking(order.getProduct().getId());
+        product.increaseStock(order.getQuantity());
     }
 
     private Order findOrder(Long orderId) {

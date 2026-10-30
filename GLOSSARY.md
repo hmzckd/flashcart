@@ -51,7 +51,7 @@ Where an order is in its life: pending, paid, shipped or cancelled.
 _Avoid_: State, stage
 
 **Pending**:
-An order that has been placed but not paid. Its units are already taken from the stock.
+An order that has been placed but not paid. Its units are already taken from the stock. If it is not paid before its payment deadline, it is cancelled.
 _Avoid_: New, open, created
 
 **Paid**:
@@ -63,7 +63,7 @@ An order that has been sent to the customer. It can no longer change.
 _Avoid_: Delivered, completed, fulfilled
 
 **Cancelled**:
-An order that will not go ahead. Its units go back to the stock, a refund is requested if it was paid, and it can no longer change.
+An order that will not go ahead, because the customer cancelled it or its payment deadline passed. Its units go back to the stock, a refund is requested if it was paid, and it can no longer change.
 _Avoid_: Deleted, voided, refunded
 
 ### Payments
@@ -71,6 +71,10 @@ _Avoid_: Deleted, voided, refunded
 **Payment**:
 Money a customer pays for one order through the payment provider. A pending order becomes paid when a payment for its total succeeds.
 _Avoid_: Charge, transaction
+
+**Payment deadline**:
+How long a pending order waits for its payment: 15 minutes from the moment it was placed. When it passes, the order is cancelled and its units go back to the stock. A payment that arrives later is refunded.
+_Avoid_: Timeout, expiry, TTL
 
 **Payment provider**:
 The outside service that takes the customer's money and tells FlashCart what happened with payment events.
