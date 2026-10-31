@@ -15,6 +15,11 @@ services:
     ports:
       - "9092:9092"
 
+  redis:
+    image: redis:8
+    ports:
+      - "6379:6379"
+
   notification-postgres:
     image: postgres:17
     environment:
