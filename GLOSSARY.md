@@ -18,6 +18,10 @@ _Avoid_: Cost, amount
 How many units of a product are still available to sell.
 _Avoid_: Inventory, quantity
 
+**Product cache**:
+A copy of the product list kept in Redis for at most 5 seconds, so that customers who reload the list do not all hit the database. The stock it shows can be up to 5 seconds old; placing an order always checks the stock in the database.
+_Avoid_: Snapshot, replica
+
 ### Ordering
 
 **Order**:

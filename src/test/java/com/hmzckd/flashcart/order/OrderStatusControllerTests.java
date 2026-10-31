@@ -222,13 +222,7 @@ class OrderStatusControllerTests {
         return JsonPath.<Integer>read(body, "$.length()");
     }
 
-    private int stock() throws Exception {
-        String body = mockMvc.perform(get("/api/products"))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        List<Integer> stocks = JsonPath.read(body, "$[?(@.id == %d)].stock".formatted(productId));
-        return stocks.getFirst();
+    private int stock() {
+        return jdbcTemplate.queryForObject("SELECT stock FROM products WHERE id = ?", Integer.class, productId);
     }
 }
