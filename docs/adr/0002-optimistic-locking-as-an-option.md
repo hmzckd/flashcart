@@ -8,6 +8,15 @@ We added optimistic locking (a version number on `Product`) next to the lock fro
 | Optimistic, 3 retries | 10, using 71 to 93 transactions (counted once with a temporary counter) |
 | Optimistic, no retries | 6 to 10, fewer than 10 in 8 of 12 runs |
 
+A k6 load test ([docs/load-test.md](../load-test.md)) later sent 5,000 orders from 200 users for one product with 100 units, 4 runs per mode:
+
+| 5,000 orders, 200 users, 100 units | Units sold | 409 "try again" | Median response |
+|---|---|---|---|
+| Pessimistic | 100 | 0 | 110 to 194 ms |
+| Optimistic, 3 retries | 100 | 35 to 52 | 29 to 67 ms |
+
+Optimistic locking had the lower median response time, mostly because the orders that arrive after the stock is gone get their 409 without waiting for the lock; the p95 ranges overlap (312 to 561 ms pessimistic, 385 to 493 ms optimistic). But in every run 35 to 52 customers were asked to try again while units were still being sold, so the default stays pessimistic.
+
 ## Consequences
 
 - The `version` column changes in both modes but never causes a failure in pessimistic mode, because the lock already stops two orders from changing the same product at once.
